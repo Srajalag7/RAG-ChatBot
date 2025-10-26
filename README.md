@@ -23,8 +23,8 @@ A FastAPI-based chatbot that scrapes GitLab Handbook and Direction pages, create
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd GitLab-ChatBot
+git clone https://github.com/Srajalag7/RAG-ChatBot.git
+cd RAG-ChatBot
 
 # Install dependencies
 pip install -r requirements.txt
@@ -226,4 +226,4 @@ GitLab-ChatBot/
 
 ## License
 
-[Add your license here]
+MIT License
