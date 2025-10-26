@@ -33,3 +33,4 @@ numpy
 python-dotenv
 PyYAML
 tenacity
+pydantic-settings
