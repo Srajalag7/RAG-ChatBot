@@ -15,11 +15,12 @@ google-ai-generativelanguage
 google-genai
 
 # LangChain ecosystem
-langchain
-langchain-community
-langchain-google-genai
-langchain-openai
-langchain-text-splitters
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-google-genai==1.0.6
+langchain-openai==0.1.23
+langchain-text-splitters==0.2.0
+langchain-core==0.2.38
 
 # Web scraping
 beautifulsoup4
