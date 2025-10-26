@@ -3,6 +3,10 @@ fastapi==0.104.1
 uvicorn==0.27.1
 anyio<4.0.0,>=3.7.1
 
+# Pydantic for data validation and settings
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
 # Database and Supabase
 supabase
 psycopg2-binary
@@ -16,6 +20,7 @@ google-genai
 # LangChain ecosystem
 langchain
 langchain-community
+langchain-core
 langchain-google-genai
 langchain-openai
 langchain-text-splitters
@@ -33,6 +38,7 @@ tiktoken
 # Web scraping
 beautifulsoup4
 aiohttp
+requests
 
 # Text processing
 numpy
