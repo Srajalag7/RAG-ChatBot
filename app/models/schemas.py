@@ -139,6 +139,7 @@ class ConversationResponse(BaseModel):
     bot_response: str
     conversation_order: int
     created_at: str
+    sources: Optional[List[str]] = Field(default=None, description="List of source URLs used in the response")
 
 
 class ChatDetailResponse(BaseModel):

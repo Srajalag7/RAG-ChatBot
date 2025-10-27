@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     user_query TEXT NOT NULL,
     bot_response TEXT NOT NULL,
     conversation_order INTEGER NOT NULL,
+    sources JSONB DEFAULT '[]'::jsonb, -- List of source URLs used in the bot response
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -72,6 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_scraping_sessions_site_id ON scraping_sessions(si
 CREATE INDEX IF NOT EXISTS idx_scraping_sessions_status ON scraping_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_conversations_chat_id ON conversations(chat_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_order ON conversations(chat_id, conversation_order);
+CREATE INDEX IF NOT EXISTS idx_conversations_sources ON conversations USING GIN (sources);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -117,7 +117,8 @@ class ChatService:
                     user_query=conv["user_query"],
                     bot_response=conv["bot_response"],
                     conversation_order=conv["conversation_order"],
-                    created_at=conv["created_at"]
+                    created_at=conv["created_at"],
+                    sources=conv.get("sources", [])
                 ))
             
             return ChatDetailResponse(
@@ -177,13 +178,19 @@ class ChatService:
                 chat_history=chat_history
             )
             
+            # Extract sources from response metadata
+            sources = []
+            if response.get("success") and response.get("metadata"):
+                sources = response["metadata"].get("documents_sources", [])
+            
             # Save the conversation
             conversation_data = {
                 "chat_id": chat_id,
                 "user_query": request.query,
                 "bot_response": response.get("response", "Sorry, I couldn't generate a response."),
                 "conversation_order": current_count + 1,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "sources": sources
             }
             
             conversation_result = self.db.client.table("conversations")\
@@ -204,7 +211,8 @@ class ChatService:
                     user_query=conv["user_query"],
                     bot_response=conv["bot_response"],
                     conversation_order=conv["conversation_order"],
-                    created_at=conv["created_at"]
+                    created_at=conv["created_at"],
+                    sources=sources
                 )
             else:
                 raise Exception("Failed to save conversation")

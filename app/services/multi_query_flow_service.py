@@ -45,11 +45,18 @@ class MultiQueryFlowService:
             logger.info("Step 1: Analyzing query and splitting into sub-questions...")
             analysis_result = await self.query_analysis_service.analyze_query(user_query)
             
+            # If analysis fails, the query_analysis_service already provides a fallback
+            # that uses the original user_query as a single sub-question
             if not analysis_result or not analysis_result.get("sub_questions"):
-                return {
-                    "success": False,
-                    "error": "Failed to analyze query",
-                    "response": "I apologize, but I couldn't process your question. Please try rephrasing it."
+                logger.warning("Query analysis failed, using fallback with original query")
+                analysis_result = {
+                    "main_query": user_query,
+                    "sub_questions": [
+                        {
+                            "question": user_query,
+                            "expanded_queries": [user_query]
+                        }
+                    ]
                 }
             
             logger.info(f"Found {len(analysis_result['sub_questions'])} sub-questions")
