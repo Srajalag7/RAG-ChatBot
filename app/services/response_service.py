@@ -4,6 +4,8 @@ Handles generating final responses using retrieved context
 """
 
 import logging
+import json
+import asyncio
 from typing import Dict, Any, List
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -24,6 +26,8 @@ class ResponseService:
         self.parser = None
         self.prompt = None
         self._initialized = False
+        self.max_retries = 3
+        self.base_delay = 1.0
     
     def _ensure_initialized(self):
         """Initialize LangChain components"""
@@ -39,6 +43,7 @@ class ResponseService:
                 model=settings.response_model,
                 google_api_key=settings.gemini_api_key,
                 temperature=settings.response_temperature,
+                response_mime_type="application/json",
                 max_output_tokens=settings.response_max_tokens
             )
             
@@ -61,6 +66,43 @@ class ResponseService:
             logger.error(f"Failed to initialize response service: {e}")
             raise
     
+    async def _retry_llm_call(self, input_data: Dict[str, Any], attempt: int = 1) -> Any:
+        """
+        Retry LLM call with exponential backoff
+        
+        Args:
+            input_data: Data to pass to the LLM
+            attempt: Current attempt number
+            
+        Returns:
+            LLM response
+            
+        Raises:
+            Exception: If all retries fail
+        """
+        try:
+            # Create the chain with structured output
+            chain = self.prompt | self.llm | self.parser
+            
+            # Generate structured response
+            result = chain.invoke(input_data)
+            return result
+            
+        except Exception as e:
+            if attempt >= self.max_retries:
+                logger.error(f"LLM call failed after {self.max_retries} attempts: {e}")
+                raise
+            
+            # Calculate delay with exponential backoff
+            delay = self.base_delay * (2 ** (attempt - 1))
+            logger.warning(f"LLM call failed (attempt {attempt}/{self.max_retries}): {e}. Retrying in {delay}s...")
+            
+            # Wait before retry
+            await asyncio.sleep(delay)
+            
+            # Recursive retry
+            return await self._retry_llm_call(input_data, attempt + 1)
+    
     async def generate_final_response(self, user_query: str, context: str, chat_history: str = "") -> str:
         """
         Generate final response using retrieved context
@@ -76,16 +118,23 @@ class ResponseService:
         try:
             self._ensure_initialized()
             
-            # Create the chain with structured output
-            chain = self.prompt | self.llm | self.parser
-            
-            # Generate structured response
-            result = chain.invoke({
+            # Prepare input data for LLM call
+            input_data = {
                 "context": context,
                 "question": user_query,
                 "chat_history": chat_history,
                 "format_instructions": self.parser.get_format_instructions()
-            })
+            }
+            
+            # Generate structured response with retry logic
+            result = await self._retry_llm_call(input_data)
+
+            # Print the raw LLM response for debugging in JSON format
+            print("=" * 50)
+            print("SECOND PROMPT CALL RESPONSE (Final Response):")
+            print("=" * 50)
+            print(json.dumps(result.model_dump(), indent=4, ensure_ascii=False))
+            print("=" * 50)
             
             # Return the response text from the structured result
             return result.response

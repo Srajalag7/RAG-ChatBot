@@ -5,6 +5,7 @@ Handles splitting complex queries into sub-questions and generating expanded que
 
 import logging
 import json
+import asyncio
 from typing import Dict, List, Any, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -25,6 +26,8 @@ class QueryAnalysisService:
         self.parser = None
         self.prompt = None
         self._initialized = False
+        self.max_retries = 3
+        self.base_delay = 1.0
     
     def _ensure_initialized(self):
         """Initialize LangChain components"""
@@ -40,6 +43,7 @@ class QueryAnalysisService:
                 model=settings.query_analysis_model,
                 google_api_key=settings.gemini_api_key,
                 temperature=settings.query_analysis_temperature,
+                response_mime_type="application/json",
                 max_output_tokens=settings.query_analysis_max_tokens
             )
             
@@ -62,12 +66,50 @@ class QueryAnalysisService:
             logger.error(f"Failed to initialize query analysis service: {e}")
             raise
     
-    async def analyze_query(self, user_query: str) -> Dict[str, Any]:
+    async def _retry_llm_call(self, input_data: Dict[str, Any], attempt: int = 1) -> Any:
+        """
+        Retry LLM call with exponential backoff
+        
+        Args:
+            input_data: Data to pass to the LLM
+            attempt: Current attempt number
+            
+        Returns:
+            LLM response
+            
+        Raises:
+            Exception: If all retries fail
+        """
+        try:
+            # Create the chain with structured output
+            chain = self.prompt | self.llm | self.parser
+            
+            # Generate structured response
+            result = chain.invoke(input_data)
+            return result
+            
+        except Exception as e:
+            if attempt >= self.max_retries:
+                logger.error(f"LLM call failed after {self.max_retries} attempts: {e}")
+                raise
+            
+            # Calculate delay with exponential backoff
+            delay = self.base_delay * (2 ** (attempt - 1))
+            logger.warning(f"LLM call failed (attempt {attempt}/{self.max_retries}): {e}. Retrying in {delay}s...")
+            
+            # Wait before retry
+            await asyncio.sleep(delay)
+            
+            # Recursive retry
+            return await self._retry_llm_call(input_data, attempt + 1)
+    
+    async def analyze_query(self, user_query: str, chat_history: str = "") -> Dict[str, Any]:
         """
         Analyze user query and split into sub-questions with expanded queries
         
         Args:
             user_query: The user's original question
+            chat_history: Previous conversation history for context
             
         Returns:
             Dictionary containing main query and sub-questions with expanded queries
@@ -75,14 +117,15 @@ class QueryAnalysisService:
         try:
             self._ensure_initialized()
             
-            # Create the chain with structured output
-            chain = self.prompt | self.llm | self.parser
-            
-            # Generate structured response
-            result = chain.invoke({
+            # Prepare input data for LLM call
+            input_data = {
                 "user_query": user_query,
+                "chat_history": chat_history,
                 "format_instructions": self.parser.get_format_instructions()
-            })
+            }
+            
+            # Generate structured response with retry logic
+            result = await self._retry_llm_call(input_data)
             
             # Print the raw LLM response for debugging in JSON format
             print("=" * 50)

@@ -43,7 +43,7 @@ class MultiQueryFlowService:
             
             # Step 1: Analyze the query and split into sub-questions
             logger.info("Step 1: Analyzing query and splitting into sub-questions...")
-            analysis_result = await self.query_analysis_service.analyze_query(user_query)
+            analysis_result = await self.query_analysis_service.analyze_query(user_query, chat_history)
             
             # If analysis fails, the query_analysis_service already provides a fallback
             # that uses the original user_query as a single sub-question
